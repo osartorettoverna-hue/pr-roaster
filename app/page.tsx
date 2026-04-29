@@ -43,6 +43,22 @@ function getSeverity(text: string) {
   return level;
 }
 
+function renderInline(text: string, key: string): React.ReactNode {
+  // Parse **bold** and `code` inline
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  return (
+    <span key={key}>
+      {parts.map((part, i) => {
+        if (part.startsWith("**") && part.endsWith("**"))
+          return <strong key={i} className="text-white font-bold">{part.slice(2, -2)}</strong>;
+        if (part.startsWith("`") && part.endsWith("`"))
+          return <span key={i} className="text-[#FF6B00] bg-[#1a0e00] px-1 rounded text-xs">{part.slice(1, -1)}</span>;
+        return part;
+      })}
+    </span>
+  );
+}
+
 function addAnnotations(text: string): React.ReactNode[] {
   const lines = text.split("\n");
   const nodes: React.ReactNode[] = [];
@@ -60,14 +76,14 @@ function addAnnotations(text: string): React.ReactNode[] {
       const emoji = ROAST_EMOJIS[emojiIndex % ROAST_EMOJIS.length];
       emojiIndex++;
       nodes.push(
-        <span key={i}>
+        <span key={i} className="block">
           <span className="mr-1">{emoji}</span>
-          {line}
+          {renderInline(line, `il-${i}`)}
           {"\n"}
         </span>
       );
     } else {
-      nodes.push(<span key={i}>{line}{"\n"}</span>);
+      nodes.push(<span key={i} className="block">{renderInline(line, `il-${i}`)}{"\n"}</span>);
     }
   }
   return nodes;
