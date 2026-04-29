@@ -44,13 +44,14 @@ function getSeverity(text: string) {
 }
 
 function renderInline(text: string, key: string): React.ReactNode {
-  // Parse **bold** and `code` inline
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g);
   return (
     <span key={key}>
       {parts.map((part, i) => {
         if (part.startsWith("**") && part.endsWith("**"))
           return <strong key={i} className="text-white font-bold">{part.slice(2, -2)}</strong>;
+        if (part.startsWith("*") && part.endsWith("*"))
+          return <em key={i} className="text-[#FF6B00] not-italic font-semibold">{part.slice(1, -1)}</em>;
         if (part.startsWith("`") && part.endsWith("`"))
           return <span key={i} className="text-[#FF6B00] bg-[#1a0e00] px-1 rounded text-xs">{part.slice(1, -1)}</span>;
         return part;
