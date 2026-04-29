@@ -6,7 +6,7 @@ const DAILY_LIMIT = 5;
 const STORAGE_KEY = "pr_roaster_usage";
 
 function getTodayKey() {
-  return new Date().toISOString().slice(0, 10); // "2025-04-29"
+  return new Date().toISOString().slice(0, 10);
 }
 
 function getRoastsToday(): number {
@@ -33,30 +33,35 @@ const SEVERITY_LEVELS = [
   { label: "CALL YOUR THERAPIST", className: "bg-[#1a0000] border border-[#cc0000] text-[#ff2200]", minLen: 700 },
 ];
 
+const ROAST_EMOJIS = ["🔥", "💀", "🤦", "😤", "🗑️", "☠️", "🤡", "💩", "🧟", "😭"];
+
 function getSeverity(text: string) {
-  const len = text.length;
   let level = SEVERITY_LEVELS[0];
   for (const s of SEVERITY_LEVELS) {
-    if (len >= s.minLen) level = s;
+    if (text.length >= s.minLen) level = s;
   }
   return level;
 }
 
-function addFlames(text: string): React.ReactNode[] {
+function addAnnotations(text: string): React.ReactNode[] {
   const lines = text.split("\n");
   const nodes: React.ReactNode[] = [];
-  let linesSinceFlame = 0;
+  let linesSinceAnnotation = 0;
+  let emojiIndex = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    linesSinceFlame++;
+    linesSinceAnnotation++;
     const isNonEmpty = line.trim().length > 0;
-    const shouldFlame = isNonEmpty && linesSinceFlame >= 3;
-    if (shouldFlame) {
-      linesSinceFlame = 0;
+    const shouldAnnotate = isNonEmpty && linesSinceAnnotation >= 3;
+
+    if (shouldAnnotate) {
+      linesSinceAnnotation = 0;
+      const emoji = ROAST_EMOJIS[emojiIndex % ROAST_EMOJIS.length];
+      emojiIndex++;
       nodes.push(
         <span key={i}>
-          <span className="text-[#FF4500] mr-1">🔥</span>
+          <span className="mr-1">{emoji}</span>
           {line}
           {"\n"}
         </span>
@@ -67,6 +72,9 @@ function addFlames(text: string): React.ReactNode[] {
   }
   return nodes;
 }
+
+const GITHUB_PR_REGEX = /^https?:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+/;
+const GITHUB_REPO_REGEX = /^https?:\/\/github\.com\/[^/]+\/[^/]+\/?$/;
 
 export default function Home() {
   const [diff, setDiff] = useState("");
@@ -90,13 +98,19 @@ export default function Home() {
   }, [output]);
 
   async function handleRoast() {
-    if (!diff.trim()) {
+    const trimmed = diff.trim();
+    if (!trimmed) {
       textareaRef.current?.focus();
       return;
     }
 
-    const used = getRoastsToday();
-    if (used >= DAILY_LIMIT) {
+    // Catch repo URLs (missing /pull/123)
+    if (GITHUB_REPO_REGEX.test(trimmed)) {
+      setError("That's a repo link, not a PR. Paste a specific PR URL — github.com/owner/repo/pull/123");
+      return;
+    }
+
+    if (getRoastsToday() >= DAILY_LIMIT) {
       setError(`You've used all ${DAILY_LIMIT} roasts for today. Come back tomorrow with worse code.`);
       return;
     }
@@ -110,7 +124,7 @@ export default function Home() {
       const res = await fetch("/api/roast", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ diff }),
+        body: JSON.stringify({ diff: trimmed }),
       });
 
       if (!res.ok) {
@@ -118,12 +132,10 @@ export default function Home() {
         throw new Error(data.error ?? "Something went wrong");
       }
 
-      const newCount = incrementRoastsToday();
-      setRoastsToday(newCount);
+      setRoastsToday(incrementRoastsToday());
 
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();
-
       while (true) {
         const { value, done: streamDone } = await reader.read();
         if (streamDone) break;
@@ -142,9 +154,7 @@ export default function Home() {
       await navigator.clipboard.writeText(output);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // fallback: select text
-    }
+    } catch {}
   }
 
   function handleReset() {
@@ -159,11 +169,11 @@ export default function Home() {
   const showOutput = output.length > 0 || loading;
   const remaining = Math.max(0, DAILY_LIMIT - roastsToday);
   const isLimitReached = roastsToday >= DAILY_LIMIT;
-  const isGitHubUrl = /^https?:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+/.test(diff.trim());
+  const isGitHubPR = GITHUB_PR_REGEX.test(diff.trim());
+  const isRepoOnly = GITHUB_REPO_REGEX.test(diff.trim());
 
   return (
     <div className="relative min-h-screen bg-[#0a0a0a] text-white flex flex-col">
-      {/* Subtle grid background */}
       <div
         className="pointer-events-none fixed inset-0 opacity-[0.03]"
         style={{
@@ -179,9 +189,7 @@ export default function Home() {
           <span className="gradient-text">PR</span>
           <span className="text-white"> ROASTER</span>
         </span>
-        <span className="text-xs text-[#555] hidden sm:block">
-          Brutally honest since 2025
-        </span>
+        <span className="text-xs text-[#555] hidden sm:block">Brutally honest since 2025</span>
       </nav>
 
       {/* Hero */}
@@ -196,24 +204,11 @@ export default function Home() {
           <span className="gradient-text">THE TRUTH</span>
         </h1>
 
-        <p className="text-[#888] text-base sm:text-lg text-center mb-3 max-w-md">
-          Incolla il link di una PR GitHub o un diff grezzo.
+        <p className="text-[#888] text-base sm:text-lg text-center mb-12 max-w-md">
+          Paste a GitHub PR link or a raw diff.
           <br />
           <span className="text-[#666]">Get absolutely destroyed.</span>
         </p>
-
-        {/* Input mode pills */}
-        <div className="flex items-center gap-2 mb-8 text-xs">
-          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1a1a1a] border border-[#333] text-[#888]">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-            github.com/owner/repo/pull/123
-          </span>
-          <span className="text-[#333]">oppure</span>
-          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1a1a1a] border border-[#333] text-[#888]">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-            diff grezzo
-          </span>
-        </div>
 
         {/* Input card */}
         <div className="w-full max-w-2xl">
@@ -222,7 +217,7 @@ export default function Home() {
               ref={textareaRef}
               value={diff}
               onChange={(e) => setDiff(e.target.value)}
-              placeholder={"https://github.com/owner/repo/pull/123\n\noppure incolla qui il diff..."}
+              placeholder={"https://github.com/owner/repo/pull/123\n\nor paste a raw diff..."}
               className="w-full bg-transparent text-white text-sm font-mono placeholder-[#444] resize-none p-4 rounded-lg min-h-[200px] leading-relaxed"
               rows={10}
               spellCheck={false}
@@ -230,16 +225,23 @@ export default function Home() {
             />
           </div>
 
-          {/* Char count + rate limit indicator */}
+          {/* Status row */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               <div className="text-xs text-[#444]">
                 {diff.length > 0 ? `${diff.length} chars` : "No input yet"}
               </div>
-              {isGitHubUrl && (
+              {isGitHubPR && (
                 <span className="flex items-center gap-1 text-xs text-green-500 bg-green-950/40 border border-green-900 px-2 py-0.5 rounded-full">
-                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  GitHub PR rilevata
+                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                    <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  GitHub PR detected
+                </span>
+              )}
+              {isRepoOnly && (
+                <span className="text-xs text-yellow-600">
+                  Needs a PR link — add /pull/123
                 </span>
               )}
               {diff.length > 0 && (
@@ -251,7 +253,7 @@ export default function Home() {
                 </button>
               )}
             </div>
-            <div className="text-xs text-[#444]">
+            <div className="text-xs">
               {isLimitReached ? (
                 <span className="text-red-700">0 roasts left today</span>
               ) : (
@@ -297,18 +299,14 @@ export default function Home() {
         {/* Output */}
         {showOutput && (
           <div className="w-full max-w-2xl mt-8">
-            {/* Severity badge + copy button */}
             {output.length > 0 && (
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <span className={`text-xs font-black tracking-widest px-3 py-1 rounded-full uppercase ${severity.className}`}>
                     {severity.label}
                   </span>
-                  {done && (
-                    <span className="text-xs text-[#555]">review complete</span>
-                  )}
+                  {done && <span className="text-xs text-[#555]">review complete</span>}
                 </div>
-
                 {done && (
                   <button
                     onClick={handleCopy}
@@ -339,16 +337,10 @@ export default function Home() {
               </div>
             )}
 
-            {/* Output card */}
-            <div
-              ref={outputRef}
-              className="output-card bg-[#111] rounded-r-xl p-6 max-h-[500px] overflow-y-auto"
-            >
-              <pre
-                className={`text-sm font-mono text-white/90 whitespace-pre-wrap leading-relaxed ${!done && loading ? "cursor-blink" : ""}`}
-              >
+            <div ref={outputRef} className="output-card bg-[#111] rounded-r-xl p-6 max-h-[500px] overflow-y-auto">
+              <pre className={`text-sm font-mono text-white/90 whitespace-pre-wrap leading-relaxed ${!done && loading ? "cursor-blink" : ""}`}>
                 {output.length > 0
-                  ? addFlames(output)
+                  ? addAnnotations(output)
                   : <span className="text-[#444]">Preparing your roast...</span>
                 }
               </pre>
@@ -366,12 +358,8 @@ export default function Home() {
         )}
       </main>
 
-      {/* Footer */}
       <footer className="relative z-10 text-center py-6 text-[#444] text-xs border-t border-[#111]">
-        Made with{" "}
-        <span className="gradient-text font-semibold">Claude API</span>
-        {" · "}
-        No PRs were harmed
+        Made with <span className="gradient-text font-semibold">Claude API</span> · No PRs were harmed
       </footer>
     </div>
   );
