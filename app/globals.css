@@ -1,26 +1,93 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #0a0a0a;
+  --foreground: #ffffff;
+  --orange-start: #FF4500;
+  --orange-end: #FF6B00;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
 }
+
+@keyframes flamePulse {
+  0%, 100% {
+    transform: scale(1) rotate(-2deg);
+    filter: drop-shadow(0 0 8px #FF4500);
+  }
+  50% {
+    transform: scale(1.12) rotate(2deg);
+    filter: drop-shadow(0 0 24px #FF6B00);
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  15% { transform: translateX(-5px) rotate(-1deg); }
+  30% { transform: translateX(5px) rotate(1deg); }
+  45% { transform: translateX(-4px); }
+  60% { transform: translateX(4px); }
+  75% { transform: translateX(-2px); }
+  90% { transform: translateX(2px); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.flame-animate {
+  display: inline-block;
+  animation: flamePulse 2.4s ease-in-out infinite;
+}
+
+.roast-btn:hover {
+  animation: shake 0.45s ease-in-out;
+}
+
+.cursor-blink::after {
+  content: '█';
+  animation: blink 1s step-end infinite;
+  color: #FF6B00;
+  font-size: 0.9em;
+  margin-left: 2px;
+}
+
+.gradient-text {
+  background: linear-gradient(90deg, #FF4500, #FF6B00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.btn-gradient {
+  background: linear-gradient(135deg, #FF4500, #FF6B00);
+}
+.btn-gradient:hover {
+  filter: brightness(1.15);
+}
+.btn-gradient:active {
+  transform: scale(0.98);
+}
+
+.output-card {
+  border-left: 3px solid #FF4500;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 1px #FF4500;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #111; }
+::-webkit-scrollbar-thumb { background: #FF4500; border-radius: 3px; }
