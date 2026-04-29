@@ -159,6 +159,7 @@ export default function Home() {
   const showOutput = output.length > 0 || loading;
   const remaining = Math.max(0, DAILY_LIMIT - roastsToday);
   const isLimitReached = roastsToday >= DAILY_LIMIT;
+  const isGitHubUrl = /^https?:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+/.test(diff.trim());
 
   return (
     <div className="relative min-h-screen bg-[#0a0a0a] text-white flex flex-col">
@@ -195,11 +196,24 @@ export default function Home() {
           <span className="gradient-text">THE TRUTH</span>
         </h1>
 
-        <p className="text-[#888] text-base sm:text-lg text-center mb-12 max-w-md">
-          Paste your PR diff or describe your changes.
+        <p className="text-[#888] text-base sm:text-lg text-center mb-3 max-w-md">
+          Incolla il link di una PR GitHub o un diff grezzo.
           <br />
           <span className="text-[#666]">Get absolutely destroyed.</span>
         </p>
+
+        {/* Input mode pills */}
+        <div className="flex items-center gap-2 mb-8 text-xs">
+          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1a1a1a] border border-[#333] text-[#888]">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+            github.com/owner/repo/pull/123
+          </span>
+          <span className="text-[#333]">oppure</span>
+          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1a1a1a] border border-[#333] text-[#888]">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            diff grezzo
+          </span>
+        </div>
 
         {/* Input card */}
         <div className="w-full max-w-2xl">
@@ -208,7 +222,7 @@ export default function Home() {
               ref={textareaRef}
               value={diff}
               onChange={(e) => setDiff(e.target.value)}
-              placeholder="Paste your PR diff here... if you dare"
+              placeholder={"https://github.com/owner/repo/pull/123\n\noppure incolla qui il diff..."}
               className="w-full bg-transparent text-white text-sm font-mono placeholder-[#444] resize-none p-4 rounded-lg min-h-[200px] leading-relaxed"
               rows={10}
               spellCheck={false}
@@ -222,6 +236,12 @@ export default function Home() {
               <div className="text-xs text-[#444]">
                 {diff.length > 0 ? `${diff.length} chars` : "No input yet"}
               </div>
+              {isGitHubUrl && (
+                <span className="flex items-center gap-1 text-xs text-green-500 bg-green-950/40 border border-green-900 px-2 py-0.5 rounded-full">
+                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  GitHub PR rilevata
+                </span>
+              )}
               {diff.length > 0 && (
                 <button
                   onClick={() => setDiff("")}
