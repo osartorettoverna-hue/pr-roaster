@@ -26,19 +26,51 @@ function incrementRoastsToday(): number {
   return count;
 }
 
+const SAMPLE_DIFF = `diff
+- function getData(x) {
+-   var data2 = [];
+-   var temp = null;
+-   for (var i = 0; i < x.length; i++) {
+-     temp = x[i];
+-     if (temp != null) {
+-       data2.push(temp);
+-     }
+-   }
+-   return data2;
+- }
++ function getData(x) {
++   var data2 = [];
++   var temp = null;
++   var xxx = 0;
++   for (var i = 0; i < x.length; i++) {
++     temp = x[i];
++     if (temp != null && temp != undefined && temp !== '') {
++       data2.push(temp);
++       xxx++;
++     }
++   }
++   console.log("done");
++   return data2;
++ }`;
+
 const SEVERITY_LEVELS = [
-  { label: "MILD DISAPPOINTMENT", className: "bg-[#1a1a1a] border border-[#555] text-[#aaa]", minLen: 0 },
-  { label: "GENUINE CONCERN",     className: "bg-[#1a1200] border border-[#aa6600] text-[#ffaa00]", minLen: 150 },
-  { label: "CAREER THREATENING",  className: "bg-[#1a0500] border border-[#aa2200] text-[#ff4400]", minLen: 400 },
-  { label: "CALL YOUR THERAPIST", className: "bg-[#1a0000] border border-[#cc0000] text-[#ff2200]", minLen: 700 },
+  { emoji: "😌", label: "MILD DISAPPOINTMENT", className: "bg-[#1a1a1a] border border-[#555] text-[#aaa]",         minWords: 0   },
+  { emoji: "😬", label: "GENUINE CONCERN",     className: "bg-[#1a1200] border border-[#aa6600] text-[#ffaa00]",   minWords: 100 },
+  { emoji: "💀", label: "CAREER THREATENING",  className: "bg-[#1a0500] border border-[#aa2200] text-[#ff4400]",   minWords: 150 },
+  { emoji: "🚨", label: "CALL YOUR THERAPIST", className: "bg-[#1a0000] border border-[#cc0000] text-[#ff2200]",   minWords: 200 },
 ];
 
 const ROAST_EMOJIS = ["🔥", "💀", "🤦", "😤", "🗑️", "☠️", "🤡", "💩", "🧟", "😭"];
 
+function countWords(text: string) {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
 function getSeverity(text: string) {
+  const words = countWords(text);
   let level = SEVERITY_LEVELS[0];
   for (const s of SEVERITY_LEVELS) {
-    if (text.length >= s.minLen) level = s;
+    if (words >= s.minWords) level = s;
   }
   return level;
 }
@@ -121,7 +153,6 @@ export default function Home() {
       return;
     }
 
-    // Catch repo URLs (missing /pull/123)
     if (GITHUB_REPO_REGEX.test(trimmed)) {
       setError("That's a repo link, not a PR. Paste a specific PR URL — github.com/owner/repo/pull/123");
       return;
@@ -180,6 +211,17 @@ export default function Home() {
     setDiff("");
     setCopied(false);
     textareaRef.current?.focus();
+  }
+
+  function handleShare(platform: "linkedin" | "x") {
+    const appUrl = "https://pr-roaster.vercel.app";
+    if (platform === "linkedin") {
+      window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(appUrl)}`, "_blank");
+    } else {
+      const snippet = output.replace(/\s+/g, " ").trim().slice(0, 80);
+      const text = `I just got my PR roasted 🔥 "${snippet}" ${appUrl}`;
+      window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank");
+    }
   }
 
   const severity = getSeverity(output);
@@ -299,6 +341,19 @@ export default function Home() {
             )}
           </button>
 
+          {/* Sample PR button */}
+          {!isLimitReached && (
+            <div className="flex justify-center mt-3">
+              <button
+                onClick={() => setDiff(SAMPLE_DIFF)}
+                disabled={loading}
+                className="text-xs text-[#555] hover:text-[#888] transition-colors disabled:opacity-40"
+              >
+                Try a sample PR 👀
+              </button>
+            </div>
+          )}
+
           {isLimitReached && (
             <p className="text-center text-xs text-[#555] mt-3">
               You've used all {DAILY_LIMIT} roasts for today. Resets at midnight.
@@ -316,44 +371,44 @@ export default function Home() {
         {/* Output */}
         {showOutput && (
           <div className="w-full max-w-2xl mt-8">
-            {output.length > 0 && (
+            {/* Severity badge row — only after streaming completes */}
+            {done && output.length > 0 && (
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <span className={`text-xs font-black tracking-widest px-3 py-1 rounded-full uppercase ${severity.className}`}>
-                    {severity.label}
+                    {severity.emoji} {severity.label}
                   </span>
-                  {done && <span className="text-xs text-[#555]">review complete</span>}
+                  <span className="text-xs text-[#555]">review complete</span>
                 </div>
-                {done && (
-                  <button
-                    onClick={handleCopy}
-                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all duration-200"
-                    style={copied
-                      ? { borderColor: "#22c55e", color: "#22c55e", background: "#052010" }
-                      : { borderColor: "#333", color: "#888", background: "transparent" }
-                    }
-                  >
-                    {copied ? (
-                      <>
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                          <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                        COPIED
-                      </>
-                    ) : (
-                      <>
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                          <rect x="4" y="4" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.2"/>
-                          <path d="M4 3V2a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H9" stroke="currentColor" strokeWidth="1.2"/>
-                        </svg>
-                        COPY ROAST
-                      </>
-                    )}
-                  </button>
-                )}
+                <button
+                  onClick={handleCopy}
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all duration-200"
+                  style={copied
+                    ? { borderColor: "#22c55e", color: "#22c55e", background: "#052010" }
+                    : { borderColor: "#333", color: "#888", background: "transparent" }
+                  }
+                >
+                  {copied ? (
+                    <>
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      COPIED
+                    </>
+                  ) : (
+                    <>
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <rect x="4" y="4" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+                        <path d="M4 3V2a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H9" stroke="currentColor" strokeWidth="1.2"/>
+                      </svg>
+                      COPY ROAST
+                    </>
+                  )}
+                </button>
               </div>
             )}
 
+            {/* Output card */}
             <div ref={outputRef} className="output-card bg-[#111] rounded-r-xl p-6 max-h-[500px] overflow-y-auto">
               <pre className={`text-sm font-mono text-white/90 whitespace-pre-wrap leading-relaxed ${!done && loading ? "cursor-blink" : ""}`}>
                 {output.length > 0
@@ -363,13 +418,41 @@ export default function Home() {
               </pre>
             </div>
 
+            {/* Share + reset row — fade in after done */}
             {done && (
-              <button
-                onClick={handleReset}
-                className="mt-4 text-xs text-[#555] hover:text-[#FF4500] transition-colors underline underline-offset-2"
+              <div
+                className="mt-4 flex flex-wrap items-center gap-3"
+                style={{ animation: "fadeInUp 0.4s ease-out" }}
               >
-                roast another PR →
-              </button>
+                {/* LinkedIn */}
+                <button
+                  onClick={() => handleShare("linkedin")}
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-[#0a66c2]/50 text-[#0a66c2] hover:bg-[#0a66c2]/10 transition-colors"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                  </svg>
+                  Share on LinkedIn
+                </button>
+
+                {/* X / Twitter */}
+                <button
+                  onClick={() => handleShare("x")}
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-[#444] text-[#aaa] hover:border-white hover:text-white transition-colors"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.26 5.632L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                  </svg>
+                  Share on X
+                </button>
+
+                <button
+                  onClick={handleReset}
+                  className="ml-auto text-xs text-[#555] hover:text-[#FF4500] transition-colors underline underline-offset-2"
+                >
+                  roast another PR →
+                </button>
+              </div>
             )}
           </div>
         )}
